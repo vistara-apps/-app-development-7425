@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { cardDatabase } from '../data/cards';
-import { Plus, Minus, Save, Play } from 'lucide-react';
+import { Plus, Minus, Save, Play, Package, Sparkles } from 'lucide-react';
 import Button from './ui/Button';
 import Card from './ui/Card';
 import Input from './ui/Input';
+import EmptyState from './ui/EmptyState';
+import { CardSkeleton } from './ui/Skeleton';
+import Tooltip from './ui/Tooltip';
 import type { Card as CardType, Deck } from '../types';
 
 const DeckBuilder: React.FC = () => {
@@ -12,11 +15,19 @@ const DeckBuilder: React.FC = () => {
   const [currentDeck, setCurrentDeck] = useState<string[]>([]);
   const [deckName, setDeckName] = useState('My Deck');
   const [savedDecks, setSavedDecks] = useState<Deck[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadDecks = async () => {
-      const decks = await loadUserDecks();
-      setSavedDecks(decks);
+      setIsLoading(true);
+      try {
+        const decks = await loadUserDecks();
+        setSavedDecks(decks);
+      } catch (error) {
+        console.error('Failed to load decks:', error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadDecks();
   }, [loadUserDecks]);
@@ -91,49 +102,83 @@ const DeckBuilder: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto animate-fade-in">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-lg">
         {/* Card Collection */}
         <div className="lg:col-span-2">
-          <h2 className="text-heading mb-md">Your Collection</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
-            {collectedCards.map((card) => (
-              <div key={card.cardId} className="relative">
-                <Card card={card} variant="default" />
-                <div className="absolute top-2 right-2 flex space-x-1">
-                  <Button
-                    onClick={() => addCardToDeck(card.cardId)}
-                    variant="icon"
-                    size="sm"
-                    disabled={currentDeck.length >= 40 || getCardCount(card.cardId) >= 3}
-                    className="bg-green-600 hover:bg-green-700"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </Button>
+          <h2 className="text-heading mb-md flex items-center">
+            <Package className="w-6 h-6 mr-2 text-primary" />
+            Your Collection
+          </h2>
+          
+          {isLoading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <CardSkeleton key={index} />
+              ))}
+            </div>
+          ) : collectedCards.length === 0 ? (
+            <EmptyState
+              icon={Sparkles}
+              title="No Cards Yet"
+              description="Visit the shop to purchase card packs and start building your collection!"
+              actionLabel="Visit Shop"
+              onAction={() => setCurrentView('shop')}
+              className="lg:col-span-2"
+            />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-md">
+              {collectedCards.map((card) => (
+                <div key={card.cardId} className="relative">
+                  <Card card={card} variant="default" />
+                  <div className="absolute top-2 right-2 flex space-x-1">
+                    <Tooltip content={
+                      currentDeck.length >= 40 
+                        ? "Deck is full (40 cards max)" 
+                        : getCardCount(card.cardId) >= 3 
+                          ? "Maximum 3 copies per card" 
+                          : "Add to deck"
+                    }>
+                      <Button
+                        onClick={() => addCardToDeck(card.cardId)}
+                        variant="icon"
+                        size="sm"
+                        disabled={currentDeck.length >= 40 || getCardCount(card.cardId) >= 3}
+                        className="bg-success hover:bg-success/80 shadow-sm"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </Tooltip>
+                    {getCardCount(card.cardId) > 0 && (
+                      <Tooltip content="Remove from deck">
+                        <Button
+                          onClick={() => removeCardFromDeck(card.cardId)}
+                          variant="icon"
+                          size="sm"
+                          className="bg-error hover:bg-error/80 shadow-sm"
+                        >
+                          <Minus className="w-4 h-4" />
+                        </Button>
+                      </Tooltip>
+                    )}
+                  </div>
                   {getCardCount(card.cardId) > 0 && (
-                    <Button
-                      onClick={() => removeCardFromDeck(card.cardId)}
-                      variant="icon"
-                      size="sm"
-                      className="bg-red-600 hover:bg-red-700"
-                    >
-                      <Minus className="w-4 h-4" />
-                    </Button>
+                    <div className="absolute bottom-2 left-2 bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold shadow-cosmic animate-pulse-glow">
+                      {getCardCount(card.cardId)}
+                    </div>
                   )}
                 </div>
-                {getCardCount(card.cardId) > 0 && (
-                  <div className="absolute bottom-2 left-2 bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
-                    {getCardCount(card.cardId)}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Deck Builder */}
-        <div className="bg-surface rounded-lg p-lg cosmic-border">
-          <h3 className="text-heading mb-md">Current Deck</h3>
+        <div className="bg-surface-elevated rounded-lg p-lg cosmic-border-subtle shadow-card">
+          <h3 className="text-heading mb-md flex items-center">
+            <Save className="w-5 h-5 mr-2 text-accent" />
+            Current Deck
+          </h3>
           
           <div className="mb-md">
             <Input
@@ -142,16 +187,34 @@ const DeckBuilder: React.FC = () => {
               placeholder="Deck Name"
               className="mb-2"
             />
-            <p className="text-caption">
-              Cards: {currentDeck.length}/40 (Min: 20)
-            </p>
+            <div className="flex justify-between items-center">
+              <p className="text-caption">
+                Cards: <span className={`font-semibold ${currentDeck.length >= 20 ? 'text-success' : 'text-warning'}`}>
+                  {currentDeck.length}
+                </span>/40 (Min: 20)
+              </p>
+              <div className="w-24 bg-surface rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-300 ${
+                    currentDeck.length >= 20 ? 'bg-success' : 'bg-warning'
+                  }`}
+                  style={{ width: `${Math.min((currentDeck.length / 40) * 100, 100)}%` }}
+                />
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2 mb-md max-h-64 overflow-y-auto">
             {currentDeck.length === 0 ? (
-              <p className="text-textSecondary text-center py-4">
-                Add cards to your deck
-              </p>
+              <div className="text-center py-8">
+                <Package className="w-12 h-12 text-textSecondary mx-auto mb-2 animate-float" />
+                <p className="text-textSecondary">
+                  Add cards to your deck
+                </p>
+                <p className="text-xs text-textSecondary mt-1">
+                  Click the + button on cards to add them
+                </p>
+              </div>
             ) : (
               Object.entries(
                 currentDeck.reduce((acc, cardId) => {
@@ -163,21 +226,27 @@ const DeckBuilder: React.FC = () => {
                 if (!card) return null;
                 
                 return (
-                  <div key={cardId} className="flex items-center justify-between bg-bg rounded p-2">
+                  <div key={cardId} className="flex items-center justify-between bg-surface rounded-md p-3 hover:bg-surface-elevated transition-colors">
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm">{card.name}</span>
-                      <span className="text-xs text-textSecondary">({card.cost} ⚡)</span>
+                      <span className="text-sm font-medium">{card.name}</span>
+                      <span className="text-xs text-textSecondary bg-accent/20 px-2 py-1 rounded">
+                        {card.cost} ⚡
+                      </span>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm font-semibold">{count}</span>
-                      <Button
-                        onClick={() => removeCardFromDeck(cardId)}
-                        variant="icon"
-                        size="sm"
-                        className="bg-red-600 hover:bg-red-700"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </Button>
+                      <span className="text-sm font-semibold bg-primary/20 text-primary px-2 py-1 rounded">
+                        {count}
+                      </span>
+                      <Tooltip content="Remove one copy">
+                        <Button
+                          onClick={() => removeCardFromDeck(cardId)}
+                          variant="icon"
+                          size="sm"
+                          className="bg-error hover:bg-error/80"
+                        >
+                          <Minus className="w-3 h-3" />
+                        </Button>
+                      </Tooltip>
                     </div>
                   </div>
                 );

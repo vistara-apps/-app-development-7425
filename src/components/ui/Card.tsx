@@ -33,10 +33,11 @@ const Card: React.FC<CardProps> = ({ card, variant = 'default', onClick }) => {
   return (
     <div
       className={`
-        bg-surface rounded-lg p-3 cosmic-border shadow-card card-hover
+        bg-surface-elevated rounded-lg p-4 cosmic-border-subtle shadow-card card-hover
         ${isLarge ? 'max-w-xs' : 'w-full'} 
-        ${onClick ? 'cursor-pointer' : ''}
+        ${onClick ? 'cursor-pointer hover:shadow-card-hover hover:cosmic-glow' : ''}
         ${getRarityColor(card.rarity)}
+        relative overflow-hidden group animate-slide-in-up
       `}
       onClick={onClick}
     >
@@ -50,18 +51,20 @@ const Card: React.FC<CardProps> = ({ card, variant = 'default', onClick }) => {
             {card.type}
           </p>
         </div>
-        <div className="flex items-center space-x-1 bg-accent text-white rounded px-2 py-1">
+        <div className="flex items-center space-x-1 bg-accent text-white rounded-md px-2 py-1 shadow-sm group-hover:shadow-cosmic-accent transition-shadow">
           <Zap className="w-3 h-3" />
           <span className="text-xs font-bold">{card.cost}</span>
         </div>
       </div>
 
       {/* Card Image Placeholder */}
-      <div className={`bg-bg rounded mb-2 flex items-center justify-center ${isLarge ? 'h-32' : 'h-20'}`}>
+      <div className={`bg-bg rounded-md mb-3 flex items-center justify-center relative ${isLarge ? 'h-32' : 'h-20'} cosmic-gradient-subtle group-hover:animate-pulse-glow`}>
         <div className="text-textSecondary text-center">
-          <div className="text-2xl mb-1">🌌</div>
-          <p className="text-xs">{card.type}</p>
+          <div className="text-2xl mb-1 animate-float">🌌</div>
+          <p className="text-xs font-medium">{card.type}</p>
         </div>
+        {/* Rarity shine effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
       </div>
 
       {/* Card Stats */}
